@@ -1,0 +1,73 @@
+<?php
+/**
+* Implements  hook_install()
+*
+*/
+function osg_spammer_install() {
+
+
+}
+function osg_spammer_schema() {
+  $schema['osg_spammers'] = array(
+    'description'=> 'Suspected Spamming IP addresses',
+    'fields'      => array(
+      'id'           => array(
+        'description'=> 'Identity Column',
+        'type'       => 'serial',
+        'not null'   => TRUE,
+      ),
+      'hostname'     => array(
+        'description'=> 'IP address',
+        'type'       => 'varchar',
+        'length'     => '40',
+        'not null'   => TRUE,
+      ),
+      'hits'         => array(
+        'description'=> 'Number of times IP address was found in access log',
+        'type'       => 'int',
+        'not null'   => TRUE,
+      ),
+      'ping_count'   => array(
+        'description'=> 'Number of times this BotScout was querried for this row',
+        'type'       => 'int',
+        'not null'   => FALSE,
+      ),
+      'insert_time'  => array(
+        'description'=> 'Time row was written to table',
+        'type'       => 'int',
+        'not null'   => TRUE,
+      ),
+      'botdata'      => array(
+        'description'=> 'Value return from BotScout API',
+        'type'       => 'varchar',
+        'length'     => '512',
+        'not null'   => FALSE,
+      ),
+      'last_checked' => array(
+        'description'=> 'last time BotScout was pinged for this value',
+        'type'       => 'int',
+        'not null'   => FALSE,
+      ),
+      'next_check'   => array(
+        'description'=> 'time after wich botscout will be repinged for this value',
+        'type'       => 'int',
+        'not null'   => FALSE,
+      ),
+	  'session'=>array(
+	  'description'=>'session that last touched this row',
+	  'type'=>'varchar',
+	  'length'=>32,	  
+	  )
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+/**
+* Implement hook_enable()
+*/
+function osg_spammer_enable() {
+  //osg_spammer_schema();
+}
+

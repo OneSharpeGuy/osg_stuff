@@ -1,0 +1,4 @@
+name = blog index
+description = Index Block for Blog Content
+package = Chuck Sharpe - Custom Mods
+core = 7.x

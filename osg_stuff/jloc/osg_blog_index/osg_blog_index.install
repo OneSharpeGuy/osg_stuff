@@ -1,0 +1,23 @@
+<?php
+/**
+* @file osg_blog_index.install
+* TODO: Enter file description here.
+*/
+
+
+/**
+* Implements hook_install().
+*/
+function osg_blog_index_install() {
+
+
+}
+
+
+/**
+* Implements hook_uninstall().
+*/
+function osg_blog_index_uninstall() {
+
+
+}

@@ -1,0 +1,345 @@
+<?php
+/**
+* @file
+* Module file for osg_blog_index.
+*/
+
+/**
+* Implements hook_menu().
+*
+* Provides a default page to explain what this module does.
+*/
+function osg_blog_index_menu(){
+  $items['examples/osg_blog_index'] = array(
+    'page callback'  => 'osg_blog_index_page',
+    'access callback'=> TRUE,
+    'title'          => 'Blog Index',
+  );
+  return $items;
+}
+
+/**
+* Simple page function to explain what the block example is about.
+*/
+function osg_blog_index_page(){
+  $page = array(
+    '#type'  => 'markup',
+    '#markup'=> t('The Blog Index provides shows an author specific index of blog articles.'),
+  );
+  return $page;
+}
+/**
+* Implements hook_block_info().
+*
+* This hook declares what blocks are provided by the module.
+*/
+function osg_blog_index_block_info(){
+  // This hook returns an array, each component of which is an array of block
+  // information. The array keys are the 'delta' values used in other block
+  // hooks.
+
+  // The required block information is a block description, which is shown
+  // to the site administrator in the list of possible blocks. You can also
+  // provide initial settings for block weight, status, etc.
+
+  // Many options are defined in hook_block_info():
+
+  // This sample shows how to provide default settings. In this case we'll
+  // enable the block in the first sidebar and make it visible only on
+  // 'node/*' pages. See the hook_block_info() documentation for these.
+  $blocks['osg_blog_index'] = array(
+    'info'  => t('OSG: Blog Index'),
+    'status'=> TRUE,
+    'region'=> 'sidebar_first',// Not usually provided.
+  );
+  return $blocks;
+}
+
+/**
+* Implements hook_block_configure().
+*
+* This hook declares configuration options for blocks provided by this module.
+*/
+function osg_blog_index_block_configure($delta = ''){
+  // The $delta parameter tells us which block is being configured.
+  // In this example, we'll allow the administrator to customize
+  // the text of the 'configurable text string' block defined in this module.
+
+  $form = array();
+  if($delta == 'osg_blog_index'){
+    // All we need to provide is the specific configuration options for our
+    // block. Drupal will take care of the standard block configuration options
+    // (block title, page visibility, etc.) and the save button.
+    $form['osg_blog_index_items_per_page'] = array(
+      '#type'         => 'textfield',
+      '#title'        => t('Items per page'),
+      '#size'         => 10,
+      '#description'  => t('How many artilces should be diplayed on a page. (0 - No limit)'),
+      '#default_value'=> variable_get('osg_blog_index_items_per_page', 0),
+    );
+    $form['osg_blog_index_date_format'] = array(
+      '#type'         => 'textfield',
+      '#title'        => t('Date Format'),
+      '#size'         => 10,
+      '#description'  => t('Format for date in tool tip text'),
+      '#default_value'=> variable_get('osg_blog_index_date_format', 'l, M jS, Y'),
+    );
+    $form['osg_blog_index_non_specific_block_title'] = array(
+      '#type'         =>'textfield',
+      '#title'        =>'Non-specific Block tittle',
+      '#size'         =>20,
+      '#description'  =>t('Title of block for non-specific authors',array(),array('langcode'=>'sw')),
+      '#default_value'=>variable_get('osg_blog_index_non_specific_block_title','Blog Index'),
+    );
+    $types = node_type_get_types();
+    $options = array();
+    foreach($types as $type){
+      $options[$type->type] = $type->name;
+    }
+    $form['osg_blog_index_nodetypes'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Node Types'),
+      '#description' => t('List only these node types.'),
+      '#default_value' => variable_get('osg_blog_index_nodetypes', array()),
+      '#options' => $options,
+    );
+  }
+  return $form;
+}
+
+/**
+* Implements hook_block_save().
+*
+* This hook declares how the configured options for a block
+* provided by this module are saved.
+*/
+function osg_blog_index_block_save($delta = '', $edit = array()){
+  // We need to save settings from the configuration form.
+  // We need to check $delta to make sure we are saving the right block.
+  if($delta == 'osg_blog_index'){
+    // Have Drupal save the string to the database.
+    variable_set('osg_blog_index_items_per_page', $edit['osg_blog_index_items_per_page']);
+    variable_set('osg_blog_index_date_format', $edit['osg_blog_index_date_format']);
+    variable_set('osg_blog_index_non_specific_block_title',$edit['osg_blog_index_non_specific_block_title']);
+    variable_set('osg_blog_index_nodetypes', $edit['osg_blog_index_nodetypes']);
+  }
+  return;
+}
+
+/**
+* Implements hook_block_view().
+*
+* This hook generates the contents of the blocks themselves.
+*/
+function osg_blog_index_block_view($delta = ''){
+  //The $delta parameter tells us which block is being requested.
+  $block = "";
+  switch($delta){
+    case 'osg_blog_index':
+    $this_page   = explode('/', current_path());
+    $author_name = FALSE;
+    $author = NULL;
+    $nid = NULL;
+    // if the path is a node
+    // and the node can be loaded
+    // and reflect the author's username in the block title
+    // and
+    if($this_page[0] == 'node'){
+      if(isset($this_page[1])){
+        if(is_numeric($this_page[1])){
+          $nid = $this_page[1];
+          $node= node_load($nid);
+          if($node->type == 'blog'){
+            $author = user_load($node->uid);
+            if(is_object($author)){
+              if(isset($author->name)){
+                $author_name = trim($author->name)."'";
+                if(strpos(strrev(strtolower($author_name)),1) <> 's'){
+                  $author_name = $author_name."s";
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if(!$author_name == FALSE){
+      $subject = $author_name.' blog';
+    }else{
+      $subject = variable_get('osg_blog_index_non_specific_block_title','Blog Index');
+    }
+
+    $block['subject'] = t($subject);
+
+    $block['content'] = osg_blog_index_content_block($author,$nid);
+    break;
+  }
+  $_SESSION['osg_blog_index']['prior_url'] = join($this_page,'/');
+
+  return $block;
+}
+
+
+/**
+* A module-defined block content function.
+*/
+function osg_blog_index_content_block($author = NULL,$nid = NULL){
+  global $user;
+  //unset ($_SESSION['osg_blog_index']);
+  if(!isset($_SESSION['osg_blog_index'])){
+    $_SESSION['osg_blog_index'] = array();
+  }
+  $user_roles = $user->roles;
+  $block      = '';
+  $node_types=array();
+  foreach( variable_get('osg_blog_index_nodetypes', array()) as $key => $value){
+    if((bool)$value){
+      $node_types[]=$value;
+    }
+  }
+  if (count($node_types)<1){
+  	$node_types[]=NULL;
+  }
+
+
+  $query      = db_select('node','n');
+  $query->join('users','u','n.uid=u.uid');
+  $query->fields('n',array('nid','title','uid','created'));
+  $query->fields('u',array('name'));
+  //$query->condition('n.type','blog');
+  $query->condition('n.type',$node_types,'IN');
+  $query->condition('n.status',1);
+  $query->orderBy('n.created','DESC');
+  //  if (is_numeric($nid)) {
+  //    $query->condition('n.nid',$nid,' <> ');
+  //  }
+  //debug($node_types);
+
+  if(is_object($author)){
+    $query -> condition('n.uid',$author->uid);
+  }
+  //drupal_set_message((string)$query);
+  $result = $query->execute();
+
+  //$styling = variable_get('osg_blog_index_css', 'style = "font - size:x - small"');
+  //$decoration = osg_blog_index_explode_decoration(variable_get('osg_blog_index_decoration',''));
+
+  $list   = array();
+  if($result->rowcount()){
+    $i = 0;
+    foreach($result as $row){
+      $target=NULL;
+      $show_node = node_access('view',node_load($row->nid));
+
+      if($show_node){
+        $blurb = $row->title;
+        //        if (!isset($author->uid)) {
+        //          //$blurb = $blurb . " < span $styling > " . $decoration[0] . $row->name . $decoration[1] . "</span > ";
+        //        }
+        if($row->nid <> $nid){
+
+          $blurb = '<a href="/node/'
+          .$row->nid.'" title="'
+          .t('by ').$row->name
+          .', published: '.osg_api_get_local_date($row->created,variable_get('osg_blog_index_date_format','l, M jS, Y')).'">'
+          . $blurb
+          . "</a>";
+        }
+        $list[$i] = $blurb ;
+        if($row->nid == $nid){
+          $target = $i;
+        }
+        $i++;
+      }
+    }
+  }
+  // Create a render array ($build) which will be themed as a table with a
+  // pager.
+
+  $per_page   = variable_get('osg_blog_index_items_per_page',10);
+  $item_count = count($list);
+
+  if($item_count > 0){
+
+    if($per_page == 0){
+      $per_page = $item_count;
+    }
+
+    // Initialise the pager
+    $current_page = pager_default_initialize($item_count, $per_page,1);
+
+    // Split your list into page sized chunks
+    $chunks       = array_chunk($list,$per_page, TRUE);
+    //find the page that has this item on it
+    $find_page = FALSE;
+    //debug($_SESSION);
+    if(is_numeric($nid)){
+      if($current_page == 0){
+        if(isset($_SESSION['osg_blog_index']['prior_url'])){
+          if("node/$nid" <> $_SESSION['osg_blog_index']['prior_url']){
+            $_SESSION['osg_blog_index']['page_synced_with_node'] = FALSE;
+            if(!isset($_SESSION['osg_blog_index']['page_synced_with_node'])){
+              $find_page = TRUE;
+            }else{
+              if(!$_SESSION['osg_blog_index']['page_synced_with_node']){
+                $find_page = TRUE;
+              }
+            }
+          }
+        }
+      }
+    }
+    if($find_page){
+      if(is_numeric($target)){
+        $current_page = floor($target / $per_page);
+        $GLOBALS['pager_page_array'] = array(1=>$current_page);
+        $_SESSION['osg_blog_index']['page_synced_with_node'] == TRUE;
+      }
+    }
+
+    /*
+    if ($find_page) {
+    $target = 'href="/node/'.$nid.'"';
+    for ($i = 0; $i = count($chunks) ; $i++) {
+    foreach ($chunks[$i] as $item) {
+    debug($item,$target);
+    if (strpos($item,$target)) {
+    $current_page = $i;
+    break;
+    }
+    }
+    //reset($chunks);
+    }
+    }
+    */
+    //debug($current_page);
+    // Show the pager
+
+    // Show the appropriate items from the list
+    $block = theme('item_list', array(
+        'items'=> $chunks[$current_page],
+      ));
+    $block = $block.theme('views_mini_pager', array(
+        'quantity'=>$item_count,
+        'tags'                    =>array('<<','<','[]','>','>>'),
+        'element'=>1
+      )
+    );
+    $_SESSION['osg_blog_index']['prior_pager_page'] = $current_page;
+  }
+  //debug($body);
+  //debug($block);
+  //dbug($GLOBALS);
+  return $block;
+}
+
+function osg_blog_index_explode_decoration($var){
+  $decoration = explode('|', $var);
+  if(count($decoration) <> 2){
+    $decoration = array('&lt;','&gt;');
+  }
+  return $decoration;
+}
+/**
+* @} End of "defgroup osg_blog_index".
+*/

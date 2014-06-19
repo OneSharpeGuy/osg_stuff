@@ -1,0 +1,5 @@
+name = Landing Page
+description = Define Page for landing alias
+core = 7.x
+package = Chuck Sharpe - Custom Mods
+configure = admin/config/content/landing

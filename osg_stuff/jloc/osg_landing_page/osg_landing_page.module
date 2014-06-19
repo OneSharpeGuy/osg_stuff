@@ -1,0 +1,147 @@
+<?php
+
+function osg_landing_page_help($path, $arg){
+
+}
+/**
+* Implements hook_permission()
+*
+* @return
+*/
+function osg_landing_page_permission(){
+
+  return array(
+    'define landing page' => array(
+      'title' => t('Define Landig Page'),
+      'description'=> t('Specify which page the landing page alias points to.'),
+    ),
+  );
+
+}
+/**
+* Implements hook_menu()
+*
+* @return
+*/
+function osg_landing_page_menu(){
+
+  $items['admin/config/content/landing'] = array(
+    'title' => 'Landing Page',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('osg_landing_page_form'),
+    'access arguments' => array('define landing page'),
+    //'type' => MENU_SUGGESTED_ITEM,
+  );
+  return $items;
+}
+
+function osg_landing_page_form($node, & $form_state){
+
+  $form['osg_landing_page_alias'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Landing page alias',
+    '#default_value'=> variable_get('osg_landing_page_alias','landing'),
+    '#required' => TRUE,
+    '#weight' => - 5,
+  );
+  $selections=osg_laniding_page_build_node_list();
+  $default=array_values($selections);
+  if(count($default)>=0){
+    $default=$default[0];
+  }
+  else{
+    $default="";
+  }
+
+
+  $form['osg_landing_page_reference_node'] = array(
+    '#type' => 'select',
+    '#title' => t('Reference Node'),
+    '#options' => $selections,
+    '#default_value'=> variable_get('osg_landing_page_reference_node',$default),
+    '#description' => t('Chose the Reference Node of the Landing Page.'),
+    '#required' => TRUE,
+
+  );
+  $form['#submit'][]='osg_landing_page_update_alias';
+
+  return system_settings_form($form);
+}
+function osg_laniding_page_build_node_list(){
+  $query = db_select('node', 'n');
+  $query ->join('users', 'u', 'n.uid = u.uid');
+  $query ->fields('n');
+  $query ->condition('n.status', 0,'>');
+  $query ->condition('u.name', 'onesharpeguy');
+  $query->orderBy('n.created','DESC');
+  $query->orderBy('n.changed','DESC');
+  $query->orderBy('n.nid','DESC');
+  $result=$query->execute();
+
+  $selection=array();
+  while(
+    $row = $result->fetchAssoc()){
+    $selection[$row['nid']]=$row['title'];
+  }
+  return $selection;
+}
+
+
+function osg_landing_page_debug($elment,&$form_state){
+  debug($elment);
+}
+
+function osg_landing_page_update_alias($form, & $form_state){
+  /**
+  *
+  array (
+  'osg_landing_page_alias' => 'landing',
+  'osg_landing_page_reference_node' => '208',
+  'submit' => 'Save configuration',
+  'form_build_id' => 'form-rDZ0iPXLNtk7Wc_hn3uSgvA1rJWtrcQSVPnJtSJ36kM',
+  'form_token' => 'kXiC_D0OSCAdZ9yPYGfQxaU3VIoy_tHraQHDUpY3T88',
+  'form_id' => 'osg_landing_page_form',
+  'op' => 'Save configuration',
+
+  */
+
+  $alias=$form_state['values']['osg_landing_page_alias'];
+  $source='node/'.$form_state['values']['osg_landing_page_reference_node'];
+  $query=db_select('url_alias','u');
+  $query->fields('u');
+  $query->condition('source',$source);
+  $query->condition('alias',$alias);
+  $result=$query->execute();
+
+  if(((int)$result->rowCount())==0){
+    $query=db_select('url_alias','u');
+    $query->condition('source',$source);
+    $query->fields('u',array('language'));
+    $result=$query->execute();
+    if(((int)$result->rowCount())>0){
+      $row=$result->fetchAssoc();
+      $language=$row['language'];
+    }
+    else{
+
+      $language=language_default('language');
+    }
+
+    db_merge('url_alias')
+    ->key(array( 'alias' => $alias,'language'=>$language))
+    ->insertFields(
+      array(
+        'source' => $source,
+        'alias' => $alias,
+        'language'=>$language,
+      )
+    )
+    ->updateFields(
+      array(
+        'source' => $source,
+        
+      )
+    )
+    ->execute();
+  }
+}

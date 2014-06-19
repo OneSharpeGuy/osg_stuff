@@ -1,0 +1,9 @@
+<?php
+
+/**
+* @file
+* Tests file for the osg_landing_page module.
+*/
+class Osg_landing_pageTestCase extends DrupalWebTestCase {
+	
+}

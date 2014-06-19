@@ -1,0 +1,10 @@
+<?php
+
+function osg_landing_page_install(){
+	
+}
+
+function osg_landing_page_uninstall(){
+	
+}
+
