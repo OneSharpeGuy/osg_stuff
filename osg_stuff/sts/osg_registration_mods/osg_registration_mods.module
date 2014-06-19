@@ -16,11 +16,9 @@ function osg_registration_mods_is_edit_path()
 	$is_edit_path = false;
 	$this_page = explode('/', current_path());
 	//debug($this_page);
-	if(count($this_page) > 2)
-	{
+	if(count($this_page) > 2){
 		//debug($this_page[0].' | '.$this_page[2]);
-		if(($this_page[0] . '|' . $this_page[2]) == 'node|register')
-		{
+		if(($this_page[0] . '|' . $this_page[2]) == 'node|register'){
 			$is_edit_path = true;
 		}
 	}
@@ -33,14 +31,12 @@ function osg_registration_mods_init()
 
 	global $user, $base_url;
 
-	if(osg_registration_mods_is_edit_path() == 1)
-	{
+	if(osg_registration_mods_is_edit_path() == 1){
 
 		// Redirect users from node/%/register to register/%/edit
 		$nid = arg(1);
 		$node= node_load(arg(1));
-		if($node->field_registration_type['und'][0]['registration_type'] == 'singout')
-		{
+		if($node->field_registration_type['und'][0]['registration_type'] == 'singout'){
 
 
 			$registrations = registration_load_multiple(false, array(
@@ -50,10 +46,8 @@ function osg_registration_mods_init()
 					'entity_id' => $nid));
 			//debug($registrations);
 
-			foreach($registrations as $key => $registration)
-			{
-				if($registration->registration_id > 0)
-				{
+			foreach($registrations as $key => $registration){
+				if($registration->registration_id > 0){
 					drupal_set_message(t('You are already registered.  You may update your registration below.'));
 					header("Location: $base_url/registration/" . $registration->registration_id .
 						'/edit?destination=node/' . $nid);
@@ -79,14 +73,12 @@ function osg_registration_mods_init()
 function osg_registration_mods_form_registration_form_alter( & $form, & $form_state,
 	$form_id)
 {
+
 	$node = node_load($form['#registration_settings']['entity_id']);
-	if($node)
-	{
-		if($node->type == 'singout')
-		{
+	if($node){
+		if($node->type == 'singout'){
 			$title = drupal_get_title();
-			if($title = 'Home')
-			{
+			if($title = 'Home'){
 				drupal_set_title($node->title);
 			}
 			$sql     = "SELECT name, CONCAT(label,' - ',description) AS caption ";
@@ -95,13 +87,10 @@ function osg_registration_mods_form_registration_form_alter( & $form, & $form_st
 			$sql     = $sql . "ORDER BY weight ";
 			$options = db_query($sql)->fetchAllKeyed();
 			$form['state']['#options'] = $options;
-			if($form['who_is_registering']['#options'])
-			{
+			if($form['who_is_registering']['#options']){
 				if($form['who_is_registering']['#options']['registration_registrant_type_me'] ==
-					"Myself")
-				{
-					if(array_key_exists('who_message', $form))
-					{
+					"Myself"){
+					if(array_key_exists('who_message', $form)){
 						$form['who_message']['#markup'] = str_ireplace('Myself', 'Yourself', $form['who_message']['#markup']);
 					}
 				}
@@ -110,40 +99,56 @@ function osg_registration_mods_form_registration_form_alter( & $form, & $form_st
 				$form['state']['#description'] = variable_get('osg_registration_mods_registration_form_description',
 					$form['state']['#description']);
 			}
+			$form['who_is_registering']['#default_value'] = 'Myself';
 			/*
-
-			SELECT user_name, first_name, last_name
-			FROM osg_users
-			WHERE is_member=1 AND is_singer=1
+			SELECT user_name,
+			first_name,
+			last_name
+			FROM osg_users u
+			INNER JOIN osg_registration_ext r ON u.uid=r.uid
+			WHERE is_member=1 AND is_singer=1 AND r.nid=42 AND unregistered =1
 
 			*/
 			$query = db_select('osg_users','u');
 			$query->fields('u',array('user_name','first_name','last_name'));
+			$query->join('osg_registration_ext','r','u.uid=r.uid');
+			$query->leftJoin('registration_state','s','r.state=s.name');
 			$query->condition('is_member',TRUE);
 			$query->condition('is_singer',TRUE);
+			$query->isNull('state');
+			$query->condition('r.nid',$node->nid);
 			$query->orderby('last_name');
 			$query->orderby('first_name');
 			$result = $query->execute();
-			$options= array();
-			foreach($result as $record){
-				$options[$record->user_name] = $record->first_name
-				.' '.$record->last_name
-				.' ('.$record->user_name
-				.') ';
+			if( $result->rowCount()){
+				$options = array('- Select -');
+				foreach($result as $record){
+
+					$options[$record->user_name] = $record->first_name
+					.' '.$record->last_name
+					.' ('.$record->user_name
+					.') '					;
+				}
+				$form['user']['#type'] = 'select';
+				$form['user']['#description'] = 'Select a user ';
+				$form['user']['#autocomplete_path'] = FALSE;
+				$form['user']['#options'] = $options;
+				$form['user']['#default_value'] = NULL;
+				unset($form['user']['#maxlength']);
+				unset($form['user']['#size']);
 			}
-			$form['user']['#type'] = 'select';
-			$form['user']['#description'] = 'Select a user ';
-			$form['user']['#autocomplete_path'] = FALSE;
-			$form['user']['#options'] = $options;
-			unset($form['user']['#maxlength']);
-			unset($form['user']['#size']);
-    
+			else
+			{
+				unset($form['who_is_registering']['#options']['registration_registrant_type_user']);
+			}
+
 
 		}
 	}
 	//debug($form);
 
-
+	//new dBug($form);
+	//new dBug($form_state);
 }
 
 /**
@@ -153,7 +158,7 @@ function osg_registration_mods_form_registration_form_alter( & $form, & $form_st
 */
 function osg_registration_mods_form_alternate_markup_form()
 {
-	$form['intro'] = array('#markup'=> t('Alternate labels for registration form'),                                                       );
+	$form['intro'] = array('#markup'=> t('Alternate labels for registration form'),                                                                                                                                        );
 	$form['osg_registration_mods_registration_form_title'] = array(
 		'#type'         => 'textfield',
 		'#title'        => t('State'),
@@ -181,7 +186,7 @@ function osg_registration_mods_menu()
 	$items['admin/config/singout/registration_form_labels'] = array(
 		'title'           => 'STS Singout Registration Mods: Alternate labels',
 		'page callback'   => 'drupal_get_form',
-		'page arguments'             => array('osg_registration_mods_form_alternate_markup_form'),
+		'page arguments'                               => array('osg_registration_mods_form_alternate_markup_form'),
 		'access arguments' => array('administer site configuration'),
 		'weight'          => 500,
 
